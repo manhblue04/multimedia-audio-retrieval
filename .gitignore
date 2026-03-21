@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env.local
+
+# Environment variables (chứa secret)
+.env
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Uploads & temp
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Dataset (âm thanh gốc, dung lượng lớn - tải IRMAS riêng)
+dataset/
+
+# Features & models (regenerate: python scripts/extract_all_features.py + train_classifier.py)
+features/*.pkl
+features/*.npz
+features/audio_features.csv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
