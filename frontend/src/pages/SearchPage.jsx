@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import AudioUploader from "../components/AudioUploader";
 import ResultList from "../components/ResultList";
 import AudioPlayer from "../components/AudioPlayer";
+import OodWarning from "../components/OodWarning";
+import GroundTruthSelector from "../components/GroundTruthSelector";
+import IntermediateResults from "../components/IntermediateResults";
 import useSearchStore from "../store/searchStore";
 import { searchAudio, getStatus } from "../services/api";
+
+// ─── Shared UI atoms ────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color = "text-brand-400" }) {
   return (
@@ -61,22 +66,53 @@ function SearchingIndicator() {
   );
 }
 
+// ─── Tab bar ────────────────────────────────────────────────────────────────
+
+function TabBar({ active, onChange }) {
+  const tabs = [
+    { id: "results",      label: "🔍 Kết quả" },
+    { id: "intermediate", label: "📊 Trung gian" },
+  ];
+  return (
+    <div className="flex gap-1 p-1 glass rounded-2xl mb-4">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+            active === t.id
+              ? "bg-brand-500/30 text-brand-200 border border-brand-500/40"
+              : "text-white/40 hover:text-white/70"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
+
 export default function SearchPage() {
-  const { status, uploadProgress, results, error, setStatus, setUploadProgress, setResults, setError, reset } =
-    useSearchStore();
+  const {
+    status, uploadProgress, results, error,
+    groundTruth, setGroundTruth,
+    setStatus, setUploadProgress, setResults, setError, reset,
+  } = useSearchStore();
 
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [dbStatus, setDbStatus] = useState(null);
+  const [previewUrl, setPreviewUrl]     = useState(null);
+  const [dbStatus, setDbStatus]         = useState(null);
+  const [activeTab, setActiveTab]       = useState("results");
 
   useEffect(() => {
-    getStatus()
-      .then(setDbStatus)
-      .catch(() => setDbStatus(null));
+    getStatus().then(setDbStatus).catch(() => setDbStatus(null));
   }, []);
 
   const handleFile = (file) => {
     reset();
+    setActiveTab("results");
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   };
@@ -99,13 +135,21 @@ export default function SearchPage() {
   const handleReset = () => {
     reset();
     setSelectedFile(null);
+    setActiveTab("results");
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
   };
 
+  // Tính Precision@5 client-side từ ground truth người dùng chọn
+  const computedPrecision = (() => {
+    if (!groundTruth || !results?.results?.length) return null;
+    const relevant = results.results.filter((r) => r.instrument === groundTruth).length;
+    return relevant / Math.min(5, results.results.length);
+  })();
+
   const isLoading = status === "uploading" || status === "searching";
-  const isDone = status === "done";
-  const hasError = status === "error";
+  const isDone    = status === "done";
+  const hasError  = status === "error";
 
   return (
     <div className="min-h-screen bg-dark-950 relative overflow-hidden">
@@ -134,8 +178,8 @@ export default function SearchPage() {
             Tìm kiếm nhạc cụ hơi
           </h1>
           <p className="text-white/40 text-sm max-w-md mx-auto">
-            Upload file âm thanh — hệ thống sẽ tìm 5 bản ghi tương đồng nhất
-            từ tập dữ liệu sử dụng đặc trưng MFCC + Cosine Similarity
+            Upload file âm thanh — hệ thống tìm 5 bản ghi tương đồng nhất
+            bằng 123D features + Cosine Similarity
           </p>
         </div>
 
@@ -152,14 +196,12 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Main card */}
+        {/* Main upload card */}
         <div className="glass rounded-3xl p-6 md:p-8 glow mb-6">
-          {/* Upload zone */}
           {!isLoading && !isDone && (
             <AudioUploader onFile={handleFile} disabled={isLoading} />
           )}
 
-          {/* Selected file preview */}
           {selectedFile && !isLoading && !isDone && (
             <div className="mt-6 p-4 glass rounded-2xl">
               <div className="flex items-center gap-3 mb-3">
@@ -171,14 +213,9 @@ export default function SearchPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-white/40">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
+                  <p className="text-xs text-white/40">{(selectedFile.size / 1024).toFixed(1)} KB</p>
                 </div>
-                <button
-                  onClick={handleReset}
-                  className="text-white/30 hover:text-white/70 transition-colors"
-                >
+                <button onClick={handleReset} className="text-white/30 hover:text-white/70 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -188,22 +225,17 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* Loading states */}
           {status === "uploading" && <UploadingIndicator progress={uploadProgress} />}
           {status === "searching" && <SearchingIndicator />}
 
-          {/* Error */}
           {hasError && (
             <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
               <p className="font-semibold mb-1">Lỗi tìm kiếm</p>
               <p className="text-red-400/80 text-xs">{error}</p>
-              <button onClick={handleReset} className="mt-3 text-xs text-red-300 underline">
-                Thử lại
-              </button>
+              <button onClick={handleReset} className="mt-3 text-xs text-red-300 underline">Thử lại</button>
             </div>
           )}
 
-          {/* Search button */}
           {selectedFile && !isLoading && !isDone && (
             <button
               onClick={handleSearch}
@@ -218,7 +250,6 @@ export default function SearchPage() {
             </button>
           )}
 
-          {/* Reset when done */}
           {isDone && (
             <button
               onClick={handleReset}
@@ -234,68 +265,57 @@ export default function SearchPage() {
           )}
         </div>
 
-        {/* Stats cards when done */}
+        {/* ─── Stats ──────────────────────────────────────────────────── */}
         {isDone && results && (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            {/* Stat cards */}
+            <div className={`grid gap-3 mb-3 ${computedPrecision !== null ? "grid-cols-2" : "grid-cols-1"}`}>
               <StatCard
                 label="Thời gian tìm kiếm"
                 value={`${results.search_time_ms}ms`}
+                sub={results.query?.windows_count > 1 ? `${results.query.windows_count} windows` : undefined}
                 color="text-brand-400"
               />
-              <StatCard
-                label="Nhạc cụ dự đoán"
-                value={results.predicted_instrument || "—"}
-                color="text-green-400"
-              />
-              <StatCard
-                label="Độ tin cậy (SVM)"
-                value={`${Math.round((results.confidence || 0) * 100)}%`}
-                color="text-amber-400"
-              />
-              <StatCard
-                label="Precision@5"
-                value={`${Math.round((results.precision_at_5 || 0) * 100)}%`}
-                color="text-purple-400"
-              />
+              {computedPrecision !== null && (
+                <StatCard
+                  label="Precision@5 (thực tế)"
+                  value={`${Math.round(computedPrecision * 100)}%`}
+                  sub={`gt: ${groundTruth}`}
+                  color="text-purple-400"
+                />
+              )}
             </div>
-            {/* SVM probability breakdown */}
-            {results.probabilities && Object.keys(results.probabilities).length > 0 && (
-              <div className="glass rounded-2xl p-4 mb-4">
-                <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Xác suất từng nhạc cụ (SVM)</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {Object.entries(results.probabilities)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([instr, prob]) => {
-                      const pct = Math.round(prob * 100);
-                      const isTop = instr === results.predicted_instrument;
-                      return (
-                        <div key={instr} className={`rounded-xl p-3 ${isTop ? "bg-green-500/15 border border-green-500/30" : "bg-white/5"}`}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className={`text-xs font-medium capitalize ${isTop ? "text-green-300" : "text-white/60"}`}>{instr}</span>
-                            <span className={`text-xs font-bold ${isTop ? "text-green-400" : "text-white/40"}`}>{pct}%</span>
-                          </div>
-                          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${isTop ? "bg-green-400" : "bg-white/20"}`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
+
+            {/* OOD warning */}
+            <OodWarning results={results} />
+
+            {/* Ground truth selector */}
+            <GroundTruthSelector
+              groundTruth={groundTruth}
+              onSelect={setGroundTruth}
+              top5={results.results}
+            />
+          </>
+        )}
+
+        {/* ─── Tab bar + content ──────────────────────────────────────── */}
+        {isDone && results && (
+          <>
+            <TabBar active={activeTab} onChange={setActiveTab} />
+
+            {activeTab === "results" && (
+              <ResultList results={results.results} />
+            )}
+
+            {activeTab === "intermediate" && (
+              <IntermediateResults results={results} />
             )}
           </>
         )}
 
-        {/* Results */}
-        {isDone && results?.results && <ResultList results={results.results} />}
-
-        {/* Footer info */}
+        {/* Footer */}
         <p className="text-center text-xs text-white/20 mt-10">
-          MFCC · Spectral Centroid · Bandwidth · RMS · ZCR · Spectral Contrast · Cosine Similarity
+          MFCC · Pitch F0 · Spectral · Cosine Similarity · 123D
         </p>
       </div>
     </div>
