@@ -37,7 +37,7 @@ IRMAS_MAP = {
     "trumpet": "trumpet",
 }
 
-AUDIO_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac", ".aiff", ".m4a"}
+AUDIO_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac", ".aif", ".aiff", ".m4a"}
 
 
 def collect_files(dataset_dir: str) -> list:
