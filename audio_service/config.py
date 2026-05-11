@@ -69,7 +69,7 @@ HOP_SEC = 1.5
 # ── Out-of-Distribution detection ────────────────────────────────────────
 # Nếu cosine similarity cao nhất trong toàn bộ DB < ngưỡng này,
 # hệ thống báo low_confidence = True.
-OOD_THRESHOLD = 0.60
+OOD_THRESHOLD = 0.50
 
 # ── Nhãn nhạc cụ ─────────────────────────────────────────────────────────
 INSTRUMENTS = ["clarinet", "flute", "saxophone", "trumpet"]

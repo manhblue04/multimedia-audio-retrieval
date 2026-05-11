@@ -42,8 +42,8 @@ const INST_COLORS = {
 
 const CHART_STYLE = {
   contentStyle: { background: "#0f172a", border: "1px solid rgba(66,153,225,0.2)", borderRadius: 8 },
-  labelStyle: { color: "#e2e8f0", fontSize: 12 },
-  itemStyle: { fontSize: 11 },
+  labelStyle: { color: "#ffffff", fontSize: 12 },
+  itemStyle: { color: "#ffffff", fontSize: 11 },
 };
 
 // ─────────────────────────────────────────────
